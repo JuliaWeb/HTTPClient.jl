@@ -523,6 +523,10 @@ function urlencode(curl, s::String)
     return esc_s
 end
 
+function urlencode(curl, s::SubString)
+    urlencode(curl, s.string[s.offset:s.endof])
+end
+
 function urlencode(s::String)
     curl = curl_easy_init()
     if (curl == C_NULL) throw("curl_easy_init() failed") end
