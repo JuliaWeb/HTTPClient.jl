@@ -524,7 +524,7 @@ function urlencode(curl, s::String)
 end
 
 function urlencode(curl, s::SubString)
-    urlencode(curl, s.string[s.offset:s.endof])
+    urlencode(curl, s.string[(s.offset + 1):(s.offset + s.endof)])
 end
 
 function urlencode(s::String)
