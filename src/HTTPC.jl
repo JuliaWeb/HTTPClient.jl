@@ -3,17 +3,12 @@ module HTTPC
 using LibCURL
 using LibCURL.Mime_ext
 
+import Base.convert, Base.show, Base.get, Base.put, Base.trace
+
 export init, cleanup, get, put, post, trace, delete, head, options
-
-
 export RequestOptions, Response
 
-import Base.convert
-import Base.show
-
-
 def_rto = 0.0
-
 
 ##############################
 # Struct definitions
@@ -532,6 +527,9 @@ function urlencode(s::String)
     return esc_s
     
 end
+
+urlencode(s::SubString) = urlencode(bytestring(s))
+
 export urlencode
 
 
