@@ -60,7 +60,7 @@ Each API returns an object of type
 
 ```
     type Response
-        body::String
+        body::IOBuffer
         headers::Dict{ASCIIString, ASCIIString}
         http_code::Int
         total_time::Float64
