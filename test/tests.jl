@@ -6,7 +6,7 @@ using Base.Test
 r=HTTPC.post("http://requestb.in/api/v1/bins", "")
 @test r.http_code == 200
 
-jdict = JSON.parse(r.body)
+jdict = JSON.parse(bytestring(r.body))
 @test haskey(jdict, "name")
 
 RB = "http://requestb.in/" * jdict["name"]

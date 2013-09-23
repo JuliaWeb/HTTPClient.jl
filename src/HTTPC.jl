@@ -34,8 +34,7 @@ type Response
     http_code
     total_time
     
-    Response() = new("", Dict{ASCIIString, ASCIIString}(), 0, 0.0)
-    Response(ostr::IO) = new("", Dict{ASCIIString, ASCIIString}(), 0, 0.0)
+    Response() = new(nothing, Dict{ASCIIString, ASCIIString}(), 0, 0.0)
 end
 
 function show(io::IO, o::Response)
@@ -45,11 +44,8 @@ function show(io::IO, o::Response)
     for (k,v) in o.headers
         println(io, "    $k : $v")
     end
-    if isa(o.body, String) && (length(o.body) > 1024)
-        println(io, "Body        :", o.body[1:500], "\n", "...", "\n", o.body[end-500:end])
-    else
-        println(io, "Body        :", o.body)
-    end
+    
+    println(io, "Length of body : ", position(o.body))
 end 
 
 
@@ -70,10 +66,10 @@ type ConnContext
     rd::ReadData
     resp::Response
     options::RequestOptions
-    ostream::Union(IO, Nothing)
     close_ostream::Bool
+    bytes_recd::Integer    
     
-    ConnContext(options::RequestOptions) = new(C_NULL, "", C_NULL, ReadData(), Response(), options, nothing, false)
+    ConnContext(options::RequestOptions) = new(C_NULL, "", C_NULL, ReadData(), Response(), options, false, 0)
 end
 
 immutable CURLMsg2
@@ -81,6 +77,16 @@ immutable CURLMsg2
   easy_handle::Ptr{CURL}
   data::Ptr{Any}
 end
+
+type MultiCtxt
+    s::curl_socket_t    # Socket
+    chk_read::Bool
+    chk_write::Bool
+    timeout::Float64
+    
+    MultiCtxt() = new(0,false,false,0.0)
+end
+
 
 
 ##############################
@@ -90,12 +96,11 @@ end
 function write_cb(buff::Ptr{Uint8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
 #    println("@write_cb")
     ctxt = unsafe_pointer_to_objref(p_ctxt)
-    if isa(ctxt.ostream, IO)
-        write(ctxt.ostream, buff, sz * n)
-    else
-        ctxt.resp.body = ctxt.resp.body * bytestring(buff, convert(Int, sz * n))
-    end
-    (sz*n)::Csize_t
+    nbytes = sz * n
+    write(ctxt.resp.body, buff, nbytes)
+    ctxt.bytes_recd = ctxt.bytes_recd + nbytes
+    
+    nbytes::Csize_t
 end
 
 c_write_cb = cfunction(write_cb, Csize_t, (Ptr{Uint8}, Csize_t, Csize_t, Ptr{Void}))
@@ -142,6 +147,51 @@ end
 c_curl_read_cb = cfunction(curl_read_cb, Csize_t, (Ptr{Void}, Csize_t, Csize_t, Ptr{Void}))
 
 
+
+function curl_socket_cb(curl::Ptr{Void}, s::Cint, action::Cint, p_muctxt::Ptr{Void}, sctxt::Ptr{Void})
+    if action != CURL_POLL_REMOVE
+        muctxt = unsafe_pointer_to_objref(p_muctxt)
+
+        muctxt.s = s
+        muctxt.chk_read = false
+        muctxt.chk_write = false
+        
+        if action == CURL_POLL_IN
+            muctxt.chk_read = true
+
+        elseif action == CURL_POLL_OUT
+            muctxt.chk_write = true
+
+        elseif action == CURL_POLL_INOUT
+            muctxt.chk_read = true
+            muctxt.chk_write = true
+        end
+    end
+
+    # NOTE: Out-of-order socket fds cause problems in the case of HTTP redirects, hence ignoring CURL_POLL_REMOVE
+    ret = convert(Cint, 0)
+    ret::Cint
+end
+
+c_curl_socket_cb = cfunction(curl_socket_cb, Cint, (Ptr{Void}, Cint, Cint, Ptr{Void}, Ptr{Void}))
+
+
+
+function curl_multi_timer_cb(curlm::Ptr{Void}, timeout_ms::Clong, p_muctxt::Ptr{Void})
+    muctxt = unsafe_pointer_to_objref(p_muctxt)
+    muctxt.timeout = timeout_ms / 1000.0
+
+#    println("Requested timeout value : " * string(muctxt.timeout))
+
+    ret = convert(Cint, 0)
+    ret::Cint
+end
+
+c_curl_multi_timer_cb = cfunction(curl_multi_timer_cb, Cint, (Ptr{Void}, Clong, Ptr{Void}))
+
+
+
+
 ##############################
 # Utility functions
 ##############################
@@ -156,6 +206,18 @@ macro ce_curl (f, args...)
         end
     end    
 end
+
+macro ce_curlm (f, args...)
+    quote
+        cc = CURLM_OK
+        cc = $(esc(f))(curlm, $(args...)) 
+        
+        if(cc != CURLM_OK)
+            error (string($f) * "() failed: " * bytestring(curl_multi_strerror(cc)))
+        end
+    end    
+end
+
 
 null_cb(curl) = return nothing
 
@@ -223,10 +285,12 @@ function setup_easy_handle(url, options::RequestOptions)
     @ce_curl curl_easy_setopt CURLOPT_HTTPHEADER ctxt.slist
     
     if isa(options.ostream, String)
-        ctxt.ostream = open(options.ostream, "w+")
+        ctxt.resp.body = open(options.ostream, "w+")
         ctxt.close_ostream = true
     elseif isa(options.ostream, IO)
-        ctxt.ostream = options.ostream
+        ctxt.resp.body = options.ostream
+    else
+        ctxt.resp.body = IOBuffer()
     end
     
     ctxt
@@ -243,8 +307,8 @@ function cleanup_easy_context(ctxt::Union(ConnContext,Bool))
         end
         
         if ctxt.close_ostream
-            close(ctxt.ostream)
-            ctxt.ostream = nothing
+            close(ctxt.resp.body)
+            ctxt.resp.body = nothing
             ctxt.close_ostream = false
         end
     end
@@ -260,7 +324,6 @@ function process_response(ctxt)
 
     ctxt.resp.http_code = http_code[1]
     ctxt.resp.total_time = total_time[1]
-    
 end
 
 # function blocking_get (url)
@@ -451,6 +514,20 @@ delete(url::String, options::RequestOptions=RequestOptions()) = custom(url, "DEL
 trace(url::String, options::RequestOptions=RequestOptions()) = custom(url, "TRACE", options)
 options(url::String, options::RequestOptions=RequestOptions()) = custom(url, "OPTIONS", options) 
 
+
+for f in (:get, :head, :delete, :trace, :options)
+    @eval $(f)(url::String; kwargs...) = $(f)(url, RequestOptions(; kwargs...))
+end 
+
+# put(url::String, data::String; kwargs...) = put(url, data, options=RequestOptions(; kwargs...))
+# post(url::String, data::String; kwargs...) = post(url, data, options=RequestOptions(; kwargs...))
+
+
+for f in (:put, :post)
+    @eval $(f)(url::String, data::String; kwargs...) = $(f)(url, data, RequestOptions(; kwargs...))
+end 
+
+
 function custom(url::String, verb::String, options::RequestOptions)
     if (options.blocking)
         ctxt = false
@@ -533,7 +610,6 @@ urlencode(s::SubString) = urlencode(bytestring(s))
 export urlencode
 
 
-
 function exec_as_multi(ctxt)
     curl = ctxt.curl
     curlm = curl_multi_init()
@@ -543,27 +619,79 @@ function exec_as_multi(ctxt)
     try
         if isa(ctxt.options.callback, Function) ctxt.options.callback(curl) end
     
-        cmc = curl_multi_add_handle(curlm, curl)
-        if(cmc != CURLM_OK) error ("curl_multi_add_handle() failed: " * bytestring(curl_multi_strerror(cmc))) end
+        @ce_curlm curl_multi_add_handle curl
 
         n_active = Array(Int,1)
         n_active[1] = 1
-        now  = int64(time()*1000)
         
-        timeout_to_use = (ctxt.options.request_timeout) == 0.0 ? (30 * 24 * 3600.0) : ctxt.options.request_timeout
-        till = now + int64(timeout_to_use * 1000) + 1
+        no_to = 30 * 24 * 3600.0
+        request_timeout = 0.001 + (ctxt.options.request_timeout == 0.0 ? no_to : ctxt.options.request_timeout)
         
+        started_at = time()
+        time_left = request_timeout
+        
+    # poll_fd is unreliable when multiple parallel fds are active, hence using curl_multi_perform
+
+# START curl_multi_socket_action  mode
+    
+#         @ce_curlm curl_multi_setopt CURLMOPT_SOCKETFUNCTION c_curl_socket_cb
+#         @ce_curlm curl_multi_setopt CURLMOPT_TIMERFUNCTION c_curl_multi_timer_cb
+# 
+#         muctxt = MultiCtxt()
+#         p_muctxt = pointer_from_objref(muctxt)
+# 
+#         @ce_curlm curl_multi_setopt CURLMOPT_SOCKETDATA p_muctxt
+#         @ce_curlm curl_multi_setopt CURLMOPT_TIMERDATA p_muctxt
+# 
+#         
+#         @ce_curlm curl_multi_socket_action CURL_SOCKET_TIMEOUT 0 n_active
+#    
+#         while (n_active[1] > 0) && (time_left > 0)
+#             evt_got = 0
+#             if (muctxt.chk_read || muctxt.chk_write)
+#                 t1 = int64(time() * 1000)
+# 
+#                 poll_to = min(muctxt.timeout < 0.0 ? no_to : muctxt.timeout, time_left)
+#                 pfd_ret = poll_fd(RawFD(muctxt.s), poll_to, readable=muctxt.chk_read, writable=muctxt.chk_write)
+# 
+#                 evt_got = (isreadable(pfd_ret) ? CURL_CSELECT_IN : 0) | (iswritable(pfd_ret) ? CURL_CSELECT_OUT : 0)
+#             else
+#                 break
+#             end
+# 
+#             if (evt_got == 0)
+#                 @ce_curlm curl_multi_socket_action CURL_SOCKET_TIMEOUT 0 n_active
+#             else
+#                 @ce_curlm curl_multi_socket_action muctxt.s evt_got n_active
+#             end
+# 
+#             time_left = request_timeout - (time() - started_at)
+#         end    
+
+# END curl_multi_socket_action  mode
+
+# START curl_multi_perform  mode
+
         cmc = curl_multi_perform(curlm, n_active);
-        while (n_active[1] > 0) && ((till - now) > 0)
-            sleep(0.025)   # 25 milliseconds
-#            println("@sleep for url: " * ctxt.url)
-            
+        while (n_active[1] > 0) &&  (time_left > 0)
+            nb1 = ctxt.bytes_recd
             cmc = curl_multi_perform(curlm, n_active);    
             if(cmc != CURLM_OK) error ("curl_multi_perform() failed: " * bytestring(curl_multi_strerror(cmc))) end
 
-            now  = int64(time()*1000)
-        end    
+            nb2 = ctxt.bytes_recd
+            
+            if (nb2 > nb1)
+                yield() # Just yield to other tasks
+            else
+                sleep(0.005) # Just to prevent unnecessary CPU spinning
+            end
+            
+            time_left = request_timeout - (time() - started_at)
+        end 
 
+# END OF curl_multi_perform       
+        
+        
         if (n_active[1] == 0)
             msgs_in_queue = Array(Cint,1)
             p_msg::Ptr{CURLMsg2} = curl_multi_info_read(curlm, msgs_in_queue)
