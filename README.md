@@ -93,7 +93,10 @@ The exported APIs from module HTTPClient are :
  options(url::String, options::RequestOptions)
 ```
 
+The ```options``` can also be specified as named arguments in each of the above APIS. 
+For example, ```get(url; blocking=false, request_timeout=30.0)```
 
+The names are field names of RequestOptions
 
   
   
