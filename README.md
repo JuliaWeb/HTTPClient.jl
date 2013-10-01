@@ -67,6 +67,12 @@ Each API returns an object of type
     end
 ```
 
+If you expecting ascii text as a response, for example, html content, or json,
+`bytestring(r.body)` will return the stringified response. For binary data use the 
+functions described in http://docs.julialang.org/en/latest/stdlib/base/#i-o to access
+the raw data.
+
+
 The exported APIs from module HTTPClient are :
 
 ```
