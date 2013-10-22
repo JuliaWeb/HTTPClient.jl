@@ -1,6 +1,8 @@
 HTTPClient.jl
 =============
 
+[![Build Status](https://travis-ci.org/WestleyArgentum/HTTPClient.jl.png?branch=travis)](https://travis-ci.org/WestleyArgentum/HTTPClient.jl)
+
 Currently provides an HTTP Client based on libcurl
 
 
