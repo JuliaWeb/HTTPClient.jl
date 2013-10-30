@@ -2,6 +2,8 @@ using HTTPClient.HTTPC
 using JSON
 using Base.Test
 
+const upload_file = dirname(@__FILE__) * "/uploadfile.txt"
+
 # get a request bin name
 r=HTTPC.post("http://requestb.in/api/v1/bins", "")
 @test r.http_code == 200
@@ -70,7 +72,7 @@ r = fetch(rr)
 println("Test 3.2 passed, http_code : " * string(r.http_code))
 
 
-r=HTTPC.put(RB * "?test=4", (:file, "uploadfile.txt"))
+r=HTTPC.put(RB * "?test=4", (:file, upload_file))
 @test r.http_code == 200
 println("Test 4 passed, http_code : " * string(r.http_code))
 
@@ -113,15 +115,15 @@ r=HTTPC.post(RB * "?test=6.2", ios)
 println("Test 6.2 passed, http_code : " * string(r.http_code))
 
 
-r=HTTPC.post(RB * "?test=7", (:file, "uploadfile.txt"), RequestOptions(content_type="text/plain"))
+r=HTTPC.post(RB * "?test=7", (:file, upload_file), RequestOptions(content_type="text/plain"))
 @test r.http_code == 200
 println("Test 7 passed, http_code : " * string(r.http_code))
 
-r=HTTPC.post(RB * "?test=8", (:file, "uploadfile.txt"))
+r=HTTPC.post(RB * "?test=8", (:file, upload_file))
 @test r.http_code == 200
 println("Test 8 passed, http_code : " * string(r.http_code))
 
-rr=HTTPC.post(RB * "?test=8.1", (:file, "uploadfile.txt"), RequestOptions(blocking=false))
+rr=HTTPC.post(RB * "?test=8.1", (:file, upload_file), RequestOptions(blocking=false))
 r = fetch(rr)
 @test r.http_code == 200
 println("Test 8.1 passed, http_code : " * string(r.http_code))
