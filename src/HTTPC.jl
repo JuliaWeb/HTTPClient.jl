@@ -563,27 +563,22 @@ end
 export urlencode_query_params
 
 function urlencode_query_params(curl, params::Vector{Tuple})
-    querystr = 
-    mapreduce(
-            i -> begin
-                    k,v = i;
-                    
-                    if (v != "") 
-                        ep = urlencode(curl, string(k)) * "=" * urlencode(curl, string(v))
-                    else
-                        ep = urlencode(curl, string(k)) 
-                    end
-                    
-                    ep
-                end,
-                
-            (ep1,ep2) -> ep1 == "" ? ep2 :
-                       ep2 == "" ? ep1 :
-                       ep1 * "&" * ep2,
-            
-            "", params
-    )
+    querystr = ""
+    for x in params
+        k,v = x
+        if (v != "") 
+            ep = urlencode(curl, string(k)) * "=" * urlencode(curl, string(v))
+        else
+            ep = urlencode(curl, string(k)) 
+        end
+        
+        if querystr == ""
+            querystr = ep
+        else
+            querystr = querystr * "&" * ep
+        end
     
+    end
     return querystr
 end
 
