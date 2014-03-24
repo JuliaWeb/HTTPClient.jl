@@ -133,7 +133,7 @@ function curl_read_cb(out::Ptr{Void}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
 
     if (ctxt.rd.typ == :buffer)
         ccall(:memcpy, Ptr{Void}, (Ptr{Void}, Ptr{Void}, Uint),
-                out, convert(Ptr{Uint8}, ctxt.rd.str) + ctxt.rd.offset, b2copy)
+                out, convert(Ptr{Uint8}, pointer(ctxt.rd.str)) + ctxt.rd.offset, b2copy)
     elseif (ctxt.rd.typ == :io)
         b_read = read(ctxt.rd.src, Uint8, b2copy)
         ccall(:memcpy, Ptr{Void}, (Ptr{Void}, Ptr{Void}, Uint), out, b_read, b2copy)
@@ -477,7 +477,7 @@ function _put_post(url::String, putorpost::Symbol, options::RequestOptions, rd::
 
             @ce_curl curl_easy_setopt CURLOPT_READFUNCTION c_curl_read_cb
         else
-            ppostdata = pointer(convert(Array{Uint8}, rd.str), 1)
+            ppostdata = pointer(rd.str)
             @ce_curl curl_easy_setopt CURLOPT_COPYPOSTFIELDS ppostdata
         end
 
