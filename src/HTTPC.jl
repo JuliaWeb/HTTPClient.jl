@@ -317,10 +317,10 @@ end
 
 function process_response(ctxt)
     http_code = Array(Int,1)
-    @ce_curl curl_easy_getinfo CURLINFO_RESPONSE_CODE http_code
+    @ce_curl curl_easy_getinfo CURLINFO_RESPONSE_CODE pointer(http_code)
     
     total_time = Array(Float64,1)
-    @ce_curl curl_easy_getinfo CURLINFO_TOTAL_TIME total_time
+    @ce_curl curl_easy_getinfo CURLINFO_TOTAL_TIME pointer(total_time)
 
     ctxt.resp.http_code = http_code[1]
     ctxt.resp.total_time = total_time[1]
@@ -667,10 +667,10 @@ function exec_as_multi(ctxt)
 
 # START curl_multi_perform  mode
 
-        cmc = curl_multi_perform(curlm, n_active);
+        cmc = curl_multi_perform(curlm, pointer(n_active));
         while (n_active[1] > 0) &&  (time_left > 0)
             nb1 = ctxt.bytes_recd
-            cmc = curl_multi_perform(curlm, n_active);    
+            cmc = curl_multi_perform(curlm, pointer(n_active));    
             if(cmc != CURLM_OK) error ("curl_multi_perform() failed: " * bytestring(curl_multi_strerror(cmc))) end
 
             nb2 = ctxt.bytes_recd
