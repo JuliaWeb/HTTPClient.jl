@@ -410,7 +410,7 @@ function put_post(url::String, data, putorpost::Symbol, options::RequestOptions)
         rd.str = data
         rd.sz = length(data)
         
-    elseif isa(data, Dict) || isa(data, Vector{NTuple})
+    elseif isa(data, Dict) || (isa(data, Vector) && issubtype(eltype(data), Tuple))
         arr_data = isa(data, Dict) ? collect(data) : data
         rd.str = urlencode_query_params(arr_data)  # Not very optimal since it creates another curl handle, but it is clean...
         rd.sz = length(rd.str)
@@ -550,7 +550,7 @@ end
 # EXPORTED UTILS
 ##############################
 
-function urlencode_query_params(params::Vector{NTuple})
+function urlencode_query_params{T<:Tuple}(params::Vector{T})
     curl = curl_easy_init()
     if (curl == C_NULL) throw("curl_easy_init() failed") end
     
@@ -562,7 +562,7 @@ function urlencode_query_params(params::Vector{NTuple})
 end
 export urlencode_query_params
 
-function urlencode_query_params(curl, params::Vector{NTuple})
+function urlencode_query_params{T<:Tuple}(curl, params::Vector{T})
     querystr = ""
     for x in params
         k,v = x
