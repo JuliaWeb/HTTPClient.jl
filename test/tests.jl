@@ -51,7 +51,7 @@ r=HTTPC.get(RB * "?test=2", RequestOptions(request_timeout=60.0))
 @test r.http_code == 200
 println("Test 2 passed, http_code : " * string(r.http_code))
 
-@test_throws HTTPC.get(RB * "?test=low_rto", RequestOptions(request_timeout=0.001))
+@test_throws ErrorException HTTPC.get(RB * "?test=low_rto", RequestOptions(request_timeout=0.001))
 
 r=HTTPC.put(RB * "?test=3", "some text")
 @test r.http_code == 200
