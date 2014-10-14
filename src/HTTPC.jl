@@ -30,19 +30,21 @@ end
 
 type Response
     body
-    headers
+    headers :: Dict{String, Vector{String}}
     http_code
     total_time
-    
-    Response() = new(nothing, Dict{ASCIIString, ASCIIString}(), 0, 0.0)
+
+    Response() = new(nothing, Dict{String, Vector{String}}(), 0, 0.0)
 end
 
 function show(io::IO, o::Response)
     println(io, "HTTP Code   :", o.http_code)
     println(io, "RequestTime :", o.total_time)
     println(io, "Headers     :")
-    for (k,v) in o.headers
-        println(io, "    $k : $v")
+    for (k,vs) in o.headers
+        for v in vs
+            println(io, "    $k : $v")
+        end
     end
     
     println(io, "Length of body : ", position(o.body))
@@ -113,8 +115,14 @@ function header_cb(buff::Ptr{Uint8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
 #    println(hdrlines)
     for e in hdrlines
         m = match(r"^\s*([\w\-\_]+)\s*\:(.+)", e)
-        if (m != nothing) 
-            ctxt.resp.headers[strip(m.captures[1])] = strip(m.captures[2])
+        if (m != nothing)
+            k = strip(m.captures[1])
+            v = strip(m.captures[2])
+            if haskey(ctxt.resp.headers, k)
+                push!(ctxt.resp.headers[k], v)
+            else
+                ctxt.resp.headers[k] = (String)[v]
+            end
         end
     end
     (sz*n)::Csize_t
