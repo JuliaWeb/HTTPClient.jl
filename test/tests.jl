@@ -12,6 +12,8 @@ jdict = JSON.parse(bytestring(r.body))
 @test haskey(jdict, "name")
 
 RB = "http://requestb.in/" * jdict["name"]
+HB = "http://httpbin.org"
+
 println("URL : $RB")
 
 r=HTTPC.get(RB * "?test=1")
@@ -36,6 +38,11 @@ rr=HTTPC.get(RB * "?test=1nb", RequestOptions(blocking=false))
 r = fetch(rr)
 @test r.http_code == 200
 println("Test 1nb passed, http_code : " * string(r.http_code))
+
+r=HTTPC.get(HB * "/cookies/set?k1=v1&k2=v2")
+@test r.http_code == 302
+@test Set(r.headers["Set-Cookie"]) == Set(["k1=v1; Path=/", "k2=v2; Path=/"])
+println("Test.headers passed")
 
 r=HTTPC.get(RB, RequestOptions(query_params=collect({:test => 1.1, :Hello => "\"World\"", "_rt" => "&!@#%"})))
 @test r.http_code == 200
