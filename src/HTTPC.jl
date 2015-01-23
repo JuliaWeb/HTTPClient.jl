@@ -1,5 +1,6 @@
 module HTTPC
 
+using Compat
 using LibCURL
 using LibCURL.Mime_ext
 
@@ -15,16 +16,16 @@ def_rto = 0.0
 ##############################
 
 type RequestOptions
-    blocking::Bool 
-    query_params::Vector{Tuple} 
+    blocking::Bool
+    query_params::Vector{Tuple}
     request_timeout::Float64
     callback::Union(Function,Bool)
     content_type::String
     headers::Vector{Tuple}
     ostream::Union(IO, String, Nothing)
     auto_content_type::Bool
-    
-    RequestOptions(; blocking=true, query_params=Array(Tuple,0), request_timeout=def_rto, callback=null_cb, content_type="", headers=Array(Tuple,0), ostream=nothing, auto_content_type=true) = 
+
+    RequestOptions(; blocking=true, query_params=Array(Tuple,0), request_timeout=def_rto, callback=null_cb, content_type="", headers=Array(Tuple,0), ostream=nothing, auto_content_type=true) =
     new(blocking, query_params, request_timeout, callback, content_type, headers, ostream, auto_content_type)
 end
 
@@ -33,8 +34,9 @@ type Response
     headers :: Dict{String, Vector{String}}
     http_code
     total_time
+    bytes_recd::Integer
 
-    Response() = new(nothing, Dict{String, Vector{String}}(), 0, 0.0)
+    Response() = new(nothing, Dict{String, Vector{String}}(), 0, 0.0, 0)
 end
 
 function show(io::IO, o::Response)
@@ -46,9 +48,9 @@ function show(io::IO, o::Response)
             println(io, "    $k : $v")
         end
     end
-    
-    println(io, "Length of body : ", position(o.body))
-end 
+
+    println(io, "Length of body : ", o.bytes_recd)
+end
 
 
 type ReadData
@@ -69,9 +71,8 @@ type ConnContext
     resp::Response
     options::RequestOptions
     close_ostream::Bool
-    bytes_recd::Integer    
-    
-    ConnContext(options::RequestOptions) = new(C_NULL, "", C_NULL, ReadData(), Response(), options, false, 0)
+
+    ConnContext(options::RequestOptions) = new(C_NULL, "", C_NULL, ReadData(), Response(), options, false)
 end
 
 immutable CURLMsg2
@@ -85,7 +86,7 @@ type MultiCtxt
     chk_read::Bool
     chk_write::Bool
     timeout::Float64
-    
+
     MultiCtxt() = new(0,false,false,0.0)
 end
 
@@ -100,8 +101,8 @@ function write_cb(buff::Ptr{Uint8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
     ctxt = unsafe_pointer_to_objref(p_ctxt)
     nbytes = sz * n
     write(ctxt.resp.body, buff, nbytes)
-    ctxt.bytes_recd = ctxt.bytes_recd + nbytes
-    
+    ctxt.resp.bytes_recd = ctxt.resp.bytes_recd + nbytes
+
     nbytes::Csize_t
 end
 
@@ -163,7 +164,7 @@ function curl_socket_cb(curl::Ptr{Void}, s::Cint, action::Cint, p_muctxt::Ptr{Vo
         muctxt.s = s
         muctxt.chk_read = false
         muctxt.chk_write = false
-        
+
         if action == CURL_POLL_IN
             muctxt.chk_read = true
 
@@ -207,31 +208,35 @@ c_curl_multi_timer_cb = cfunction(curl_multi_timer_cb, Cint, (Ptr{Void}, Clong, 
 macro ce_curl (f, args...)
     quote
         cc = CURLE_OK
-        cc = $(esc(f))(ctxt.curl, $(args...)) 
-        
+        cc = $(esc(f))(ctxt.curl, $(args...))
+
         if(cc != CURLE_OK)
             error (string($f) * "() failed: " * bytestring(curl_easy_strerror(cc)))
         end
-    end    
+    end
 end
 
 macro ce_curlm (f, args...)
     quote
         cc = CURLM_OK
-        cc = $(esc(f))(curlm, $(args...)) 
-        
+        cc = $(esc(f))(curlm, $(args...))
+
         if(cc != CURLM_OK)
             error (string($f) * "() failed: " * bytestring(curl_multi_strerror(cc)))
         end
-    end    
+    end
 end
 
 
 null_cb(curl) = return nothing
 
 function set_opt_blocking(options::RequestOptions)
-        o2 = deepcopy(options)
+        o2 = RequestOptions()
+        for n in filter(x -> !(x in [:ostream, :blocking]),names(o2))
+            setfield!(o2, n, deepcopy(getfield(options, n)))
+        end
         o2.blocking = true
+        o2.ostream = options.ostream
         return o2
 end
 
@@ -246,7 +251,7 @@ end
 
 function setup_easy_handle(url, options::RequestOptions)
     ctxt = ConnContext(options)
-    
+
     curl = curl_easy_init()
     if (curl == C_NULL) throw("curl_easy_init() failed") end
 
@@ -257,13 +262,13 @@ function setup_easy_handle(url, options::RequestOptions)
     @ce_curl curl_easy_setopt CURLOPT_MAXREDIRS 5
 
     if length(options.query_params) > 0
-        qp = urlencode_query_params(curl, options.query_params) 
+        qp = urlencode_query_params(curl, options.query_params)
         url = url * "?" * qp
     end
 
 
     ctxt.url = url
-    
+
     @ce_curl curl_easy_setopt CURLOPT_URL url
     @ce_curl curl_easy_setopt CURLOPT_WRITEFUNCTION c_write_cb
 
@@ -281,8 +286,8 @@ function setup_easy_handle(url, options::RequestOptions)
         # Disable libCURL automatically setting the content type
         ctxt.slist = curl_slist_append (ctxt.slist, "Content-Type:")
     end
-    
-    
+
+
     for hdr in options.headers
         hdr_str = hdr[1] * ":" * hdr[2]
         ctxt.slist = curl_slist_append (ctxt.slist, hdr_str)
@@ -291,7 +296,7 @@ function setup_easy_handle(url, options::RequestOptions)
     # Disabling the Expect header since some webservers don't handle this properly
     ctxt.slist = curl_slist_append (ctxt.slist, "Expect:")
     @ce_curl curl_easy_setopt CURLOPT_HTTPHEADER ctxt.slist
-    
+
     if isa(options.ostream, String)
         ctxt.resp.body = open(options.ostream, "w+")
         ctxt.close_ostream = true
@@ -300,7 +305,7 @@ function setup_easy_handle(url, options::RequestOptions)
     else
         ctxt.resp.body = IOBuffer()
     end
-    
+
     ctxt
 end
 
@@ -313,7 +318,7 @@ function cleanup_easy_context(ctxt::Union(ConnContext,Bool))
         if (ctxt.curl != C_NULL)
             curl_easy_cleanup(ctxt.curl)
         end
-        
+
         if ctxt.close_ostream
             close(ctxt.resp.body)
             ctxt.resp.body = nothing
@@ -326,7 +331,7 @@ end
 function process_response(ctxt)
     http_code = Array(Clong,1)
     @ce_curl curl_easy_getinfo CURLINFO_RESPONSE_CODE http_code
-    
+
     total_time = Array(Cdouble,1)
     @ce_curl curl_easy_getinfo CURLINFO_TOTAL_TIME total_time
 
@@ -339,11 +344,11 @@ end
 #         ctxt=nothing
 #         ctxt = setup_easy_handle(url)
 #         curl = ctxt.curl
-# 
+#
 #         @ce_curl curl_easy_perform
-# 
+#
 #         process_response(ctxt)
-# 
+#
 #         return ctxt.resp
 #     finally
 #         if isa(ctxt, ConnContext) && (ctxt.curl != 0)
@@ -368,14 +373,14 @@ cleanup() = curl_global_cleanup()
 # GET
 ##############################
 
-function get(url::String, options::RequestOptions=RequestOptions()) 
+function get(url::String, options::RequestOptions=RequestOptions())
     if (options.blocking)
         ctxt = false
         try
             ctxt = setup_easy_handle(url, options)
-            
+
             @ce_curl curl_easy_setopt CURLOPT_HTTPGET 1
-            
+
             return exec_as_multi(ctxt)
         finally
             cleanup_easy_context(ctxt)
@@ -399,7 +404,7 @@ function post (url::String, data, options::RequestOptions=RequestOptions())
     end
 end
 
-function put (url::String, data, options::RequestOptions=RequestOptions()) 
+function put (url::String, data, options::RequestOptions=RequestOptions())
     if (options.blocking)
         return put_post(url, data, :put, options)
     else
@@ -411,13 +416,13 @@ end
 
 function put_post(url::String, data, putorpost::Symbol, options::RequestOptions)
     rd::ReadData = ReadData()
-    
+
     if isa(data, String)
         rd.typ = :buffer
         rd.src = false
         rd.str = data
         rd.sz = length(data)
-        
+
     elseif isa(data, Dict) || (isa(data, Vector) && issubtype(eltype(data), Tuple))
         arr_data = isa(data, Dict) ? collect(data) : data
         rd.str = urlencode_query_params(arr_data)  # Not very optimal since it creates another curl handle, but it is clean...
@@ -425,19 +430,19 @@ function put_post(url::String, data, putorpost::Symbol, options::RequestOptions)
         rd.typ = :buffer
         rd.src = arr_data
         if ((options.content_type == "") && (options.auto_content_type))
-            options.content_type = "application/x-www-form-urlencoded" 
+            options.content_type = "application/x-www-form-urlencoded"
         end
-        
+
     elseif isa(data, IO)
         rd.typ = :io
         rd.src = data
-        seekend(data)    
+        seekend(data)
         rd.sz = position(data)
         seekstart(data)
         if ((options.content_type == "") && (options.auto_content_type))
-            options.content_type = "application/octet-stream" 
+            options.content_type = "application/octet-stream"
         end
-        
+
     elseif isa(data, Tuple)
         (typsym, filename) = data
         if (typsym != :file) error ("Unsupported data datatype") end
@@ -448,14 +453,14 @@ function put_post(url::String, data, putorpost::Symbol, options::RequestOptions)
 
         try
             if ((options.content_type == "") && (options.auto_content_type))
-                options.content_type = get_ct_from_ext(filename) 
+                options.content_type = get_ct_from_ext(filename)
             end
             return _put_post(url, putorpost, options, rd)
         finally
             close(rd.src)
         end
-    
-    else 
+
+    else
         error ("Unsupported data datatype")
     end
 
@@ -500,7 +505,7 @@ end
 ##############################
 # HEAD, DELETE and TRACE
 ##############################
-function head(url::String, options::RequestOptions=RequestOptions()) 
+function head(url::String, options::RequestOptions=RequestOptions())
     if (options.blocking)
         ctxt = false
         try
@@ -520,12 +525,12 @@ end
 
 delete(url::String, options::RequestOptions=RequestOptions()) = custom(url, "DELETE", options)
 trace(url::String, options::RequestOptions=RequestOptions()) = custom(url, "TRACE", options)
-options(url::String, options::RequestOptions=RequestOptions()) = custom(url, "OPTIONS", options) 
+options(url::String, options::RequestOptions=RequestOptions()) = custom(url, "OPTIONS", options)
 
 
 for f in (:get, :head, :delete, :trace, :options)
     @eval $(f)(url::String; kwargs...) = $(f)(url, RequestOptions(; kwargs...))
-end 
+end
 
 # put(url::String, data::String; kwargs...) = put(url, data, options=RequestOptions(; kwargs...))
 # post(url::String, data::String; kwargs...) = post(url, data, options=RequestOptions(; kwargs...))
@@ -533,7 +538,7 @@ end
 
 for f in (:put, :post)
     @eval $(f)(url::String, data::String; kwargs...) = $(f)(url, data, RequestOptions(; kwargs...))
-end 
+end
 
 
 function custom(url::String, verb::String, options::RequestOptions)
@@ -561,11 +566,11 @@ end
 function urlencode_query_params{T<:Tuple}(params::Vector{T})
     curl = curl_easy_init()
     if (curl == C_NULL) throw("curl_easy_init() failed") end
-    
-    querystr = urlencode_query_params(curl, params)    
+
+    querystr = urlencode_query_params(curl, params)
 
     curl_easy_cleanup(curl)
-    
+
     return querystr
 end
 export urlencode_query_params
@@ -574,18 +579,18 @@ function urlencode_query_params{T<:Tuple}(curl, params::Vector{T})
     querystr = ""
     for x in params
         k,v = x
-        if (v != "") 
+        if (v != "")
             ep = urlencode(curl, string(k)) * "=" * urlencode(curl, string(v))
         else
-            ep = urlencode(curl, string(k)) 
+            ep = urlencode(curl, string(k))
         end
-        
+
         if querystr == ""
             querystr = ep
         else
             querystr = querystr * "&" * ep
         end
-    
+
     end
     return querystr
 end
@@ -605,7 +610,7 @@ function urlencode(s::String)
     esc_s = urlencode(curl, s)
     curl_easy_cleanup(curl)
     return esc_s
-    
+
 end
 
 urlencode(s::SubString) = urlencode(bytestring(s))
@@ -616,60 +621,60 @@ export urlencode
 function exec_as_multi(ctxt)
     curl = ctxt.curl
     curlm = curl_multi_init()
-    
+
     if (curlm == C_NULL) error("Unable to initialize curl_multi_init()") end
 
     try
         if isa(ctxt.options.callback, Function) ctxt.options.callback(curl) end
-    
+
         @ce_curlm curl_multi_add_handle curl
 
         n_active = Array(Cint,1)
         n_active[1] = 1
-        
+
         no_to = 30 * 24 * 3600.0
         request_timeout = 0.001 + (ctxt.options.request_timeout == 0.0 ? no_to : ctxt.options.request_timeout)
-        
+
         started_at = time()
         time_left = request_timeout
-        
+
     # poll_fd is unreliable when multiple parallel fds are active, hence using curl_multi_perform
 
 # START curl_multi_socket_action  mode
-    
+
 #         @ce_curlm curl_multi_setopt CURLMOPT_SOCKETFUNCTION c_curl_socket_cb
 #         @ce_curlm curl_multi_setopt CURLMOPT_TIMERFUNCTION c_curl_multi_timer_cb
-# 
+#
 #         muctxt = MultiCtxt()
 #         p_muctxt = pointer_from_objref(muctxt)
-# 
+#
 #         @ce_curlm curl_multi_setopt CURLMOPT_SOCKETDATA p_muctxt
 #         @ce_curlm curl_multi_setopt CURLMOPT_TIMERDATA p_muctxt
-# 
-#         
+#
+#
 #         @ce_curlm curl_multi_socket_action CURL_SOCKET_TIMEOUT 0 n_active
-#    
+#
 #         while (n_active[1] > 0) && (time_left > 0)
 #             evt_got = 0
 #             if (muctxt.chk_read || muctxt.chk_write)
 #                 t1 = int64(time() * 1000)
-# 
+#
 #                 poll_to = min(muctxt.timeout < 0.0 ? no_to : muctxt.timeout, time_left)
 #                 pfd_ret = poll_fd(RawFD(muctxt.s), poll_to, readable=muctxt.chk_read, writable=muctxt.chk_write)
-# 
+#
 #                 evt_got = (isreadable(pfd_ret) ? CURL_CSELECT_IN : 0) | (iswritable(pfd_ret) ? CURL_CSELECT_OUT : 0)
 #             else
 #                 break
 #             end
-# 
+#
 #             if (evt_got == 0)
 #                 @ce_curlm curl_multi_socket_action CURL_SOCKET_TIMEOUT 0 n_active
 #             else
 #                 @ce_curlm curl_multi_socket_action muctxt.s evt_got n_active
 #             end
-# 
+#
 #             time_left = request_timeout - (time() - started_at)
-#         end    
+#         end
 
 # END curl_multi_socket_action  mode
 
@@ -677,24 +682,24 @@ function exec_as_multi(ctxt)
 
         cmc = curl_multi_perform(curlm, n_active);
         while (n_active[1] > 0) &&  (time_left > 0)
-            nb1 = ctxt.bytes_recd
+            nb1 = ctxt.resp.bytes_recd
             cmc = curl_multi_perform(curlm, n_active);
             if(cmc != CURLM_OK) error ("curl_multi_perform() failed: " * bytestring(curl_multi_strerror(cmc))) end
 
-            nb2 = ctxt.bytes_recd
-            
+            nb2 = ctxt.resp.bytes_recd
+
             if (nb2 > nb1)
                 yield() # Just yield to other tasks
             else
                 sleep(0.005) # Just to prevent unnecessary CPU spinning
             end
-            
-            time_left = request_timeout - (time() - started_at)
-        end 
 
-# END OF curl_multi_perform       
-        
-        
+            time_left = request_timeout - (time() - started_at)
+        end
+
+# END OF curl_multi_perform
+
+
         if (n_active[1] == 0)
             msgs_in_queue = Array(Cint,1)
             p_msg::Ptr{CURLMsg2} = curl_multi_info_read(curlm, msgs_in_queue)
@@ -704,7 +709,7 @@ function exec_as_multi(ctxt)
                 msg = unsafe_load(p_msg)
 
                 if (msg.msg == CURLMSG_DONE)
-                    ec = convert(Int, msg.data) 
+                    ec = convert(Int, msg.data)
                     if (ec != CURLE_OK)
 #                        println("Result of transfer: " * string(msg.data))
                         throw("Error executing request : " * bytestring(curl_easy_strerror(ec)))
@@ -712,7 +717,7 @@ function exec_as_multi(ctxt)
                         process_response(ctxt)
                     end
                 end
-                
+
                 p_msg = curl_multi_info_read(curlm, msgs_in_queue)
             end
         else
@@ -723,8 +728,8 @@ function exec_as_multi(ctxt)
         curl_multi_remove_handle(curlm, curl)
         curl_multi_cleanup(curlm)
     end
-    
-    ctxt.resp    
+
+    ctxt.resp
 end
 
 
