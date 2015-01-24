@@ -13,13 +13,13 @@ The exported APIs from module HTTPClient are :
 
 ```
  get(url::String, options::RequestOptions)
- get(url::String, options...)
+ get(url::String; kw_opts...)
 
  post (url::String, data, options::RequestOptions)
- post (url::String, data, options...)
+ post (url::String, data; kw_opts...)
 
  put (url::String, data, options::RequestOptions)
- put (url::String, data, options...)
+ put (url::String, data; kw_opts...)
 ```
 
 - For both ```post``` and ```put``` above, the data can be either a
@@ -30,16 +30,16 @@ The exported APIs from module HTTPClient are :
 
 ```
  head(url::String, options::RequestOptions)
- head(url::String, options...)
+ head(url::String; kw_opts...)
 
  delete(url::String, options::RequestOptions)
- delete(url::String, options...)
+ delete(url::String; kw_opts...)
 
  trace(url::String, options::RequestOptions)
- trace(url::String, options...)
+ trace(url::String; kw_opts...)
 
  options(url::String, options::RequestOptions)
- options(url::String, options...)
+ options(url::String; kw_opts...)
 ```
 
 
