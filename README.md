@@ -1,58 +1,58 @@
 HTTPClient.jl
 =============
 
-[![Build Status](https://travis-ci.org/amitmurthy/HTTPClient.jl.png?branch=master)](https://travis-ci.org/amitmurthy/HTTPClient.jl)
+[![Build Status](https://travis-ci.org/JuliaWeb/HTTPClient.jl.svg?branch=master)](https://travis-ci.org/JuliaWeb/HTTPClient.jl)
+[![Coverage Status](https://coveralls.io/repos/JuliaWeb/HTTPClient.jl/badge.svg)](https://coveralls.io/r/JuliaWeb/HTTPClient.jl)
+[![HTTPClient](http://pkg.julialang.org/badges/HTTPClient_release.svg)](http://pkg.julialang.org/?pkg=HTTPClient&ver=release)
 
-Currently provides an HTTP Client based on libcurl
+Provides HTTP client functionality based on [libcurl](https://github.com/JuliaWeb/LibCURL.jl).
 
-
-USAGE
-=====
+## Usage
 
 The exported APIs from module HTTPClient are :
 
+```julia
+get(url::String, options::RequestOptions)
+get(url::String; kw_opts...)
+
+post(url::String, data, options::RequestOptions)
+post(url::String, data; kw_opts...)
+
+put(url::String, data, options::RequestOptions)
+put(url::String, data; kw_opts...)
 ```
- get(url::String, options::RequestOptions)
- get(url::String; kw_opts...)
 
- post (url::String, data, options::RequestOptions)
- post (url::String, data; kw_opts...)
-
- put (url::String, data, options::RequestOptions)
- put (url::String, data; kw_opts...)
-```
-
-- For both ```post``` and ```put``` above, the data can be either a
-  - String - sent as is.
-  - IOStream - Content type is set to "application/octet-stream" unless specified otherwise
-  - Dict{Name, Value} or Vector{Tuple{Name, Value}} - Content type is set to "application/x-www-form-urlencoded" unless specified otherwise
+`data` can be either a
+  - `String` - sent as is.
+  - `IOStream` - Content type is set to "application/octet-stream" unless specified otherwise
+  - `Dict{Name, Value}` or `Vector{Tuple{Name, Value}}` - Content type is set to "application/x-www-form-urlencoded" unless specified otherwise
   - (:file, filename::String) - The file is read, and the content-type is set automatically unless specified otherwise.
 
+
+```julia
+head(url::String, options::RequestOptions)
+head(url::String; kw_opts...)
+
+delete(url::String, options::RequestOptions)
+delete(url::String; kw_opts...)
+
+trace(url::String, options::RequestOptions)
+trace(url::String; kw_opts...)
+
+options(url::String, options::RequestOptions)
+options(url::String; kw_opts...)
 ```
- head(url::String, options::RequestOptions)
- head(url::String; kw_opts...)
-
- delete(url::String, options::RequestOptions)
- delete(url::String; kw_opts...)
-
- trace(url::String, options::RequestOptions)
- trace(url::String; kw_opts...)
-
- options(url::String, options::RequestOptions)
- options(url::String; kw_opts...)
-```
-
 
 Each API returns an object of type
 
-```
-    type Response
-        body::IOBuffer
-        headers::Dict{ASCIIString, ASCIIString}
-        http_code::Int
-        total_time::Float64
-        bytes_recd::Integer
-    end
+```julia
+type Response
+    body::IOBuffer
+    headers::Dict{ASCIIString, ASCIIString}
+    http_code::Int
+    total_time::Float64
+    bytes_recd::Integer
+end
 ```
 
 If you expecting ascii text as a response, for example, html content, or json,
@@ -60,11 +60,12 @@ If you expecting ascii text as a response, for example, html content, or json,
 functions described in http://docs.julialang.org/en/latest/stdlib/base/#i-o to access
 the raw data.
 
+
 ### Specifying Options
 
 Options can specified either as keyword arguments or a single object of type `RequestOptions`
 
-```
+```julia
 type RequestOptions
     blocking::Bool
     query_params::Vector{Tuple}
@@ -112,14 +113,14 @@ For example, ```get(url; blocking=false, request_timeout=30.0)```
 
 
 
-SAMPLES
-=======
-- See test/tests.jl for sample code
+# Samples
+
+See `test/runtests.jl` for sample code
 
 
-TODO
-====
-- Change the sleep in a loop to using fdwatcher when support for fdwatcher becomes available in mainline
+### TODO
+
+Change the sleep in a loop to using fdwatcher when support for fdwatcher becomes available in mainline
 
 
 

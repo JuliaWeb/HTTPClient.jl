@@ -1,8 +1,9 @@
 using HTTPClient.HTTPC
 using JSON
+using Compat
 using Base.Test
 
-const upload_file = dirname(@__FILE__) * "/uploadfile.txt"
+const upload_file = joinpath(dirname(@__FILE__), "uploadfile.txt")
 
 # get a request bin name
 r=HTTPC.post("http://requestb.in/api/v1/bins", "")
@@ -44,11 +45,11 @@ r=HTTPC.get(HB * "/cookies/set?k1=v1&k2=v2")
 @test Set(r.headers["Set-Cookie"]) == Set(["k1=v1; Path=/", "k2=v2; Path=/"])
 println("Test.headers passed")
 
-r=HTTPC.get(RB, RequestOptions(query_params=collect(Dict(:test => 1.1, :Hello => "\"World\"", "_rt" => "&!@#%"))))
+r=HTTPC.get(RB, RequestOptions(query_params=collect(@compat Dict(:test => 1.1, :Hello => "\"World\"", "_rt" => "&!@#%"))))
 @test r.http_code == 200
 println("Test 1.1 passed, http_code : " * string(r.http_code))
 
-rr=HTTPC.get(RB, RequestOptions(query_params=collect(Dict(:test => 1.2, :Hello => "\"World\"", "_rt" => "&!@#%")), blocking=false))
+rr=HTTPC.get(RB, RequestOptions(query_params=collect(@compat Dict(:test => 1.2, :Hello => "\"World\"", "_rt" => "&!@#%")), blocking=false))
 r = fetch(rr)
 @test r.http_code == 200
 println("Test 1.2 passed, http_code : " * string(r.http_code))
@@ -106,7 +107,7 @@ r = fetch(rr)
 @test r.http_code == 200
 println("Test 6.1 passed, http_code : " * string(r.http_code))
 
-r=HTTPC.post(RB * "?test=6.1.0", Dict("a" => 1, "b" => 2))
+r=HTTPC.post(RB * "?test=6.1.0", @compat Dict("a" => 1, "b" => 2))
 @test r.http_code == 200
 println("Test 6.1.0 passed, http_code : " * string(r.http_code))
 

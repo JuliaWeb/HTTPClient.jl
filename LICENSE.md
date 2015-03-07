@@ -1,7 +1,7 @@
-libCURL.jl is licensed under the MIT License:
+HTTPClient.jl is licensed under the MIT License:
 
-> Copyright (c) 2013: Amit Murthy
-> and other contributors: https://github.com/amitmurthy/libCURL.jl/contributors
+> Copyright (c) 2015: Amit Murthy
+> and other contributors: https://github.com/JuliaWeb/HTTPClient.jl/contributors
 >
 > Permission is hereby granted, free of charge, to any person obtaining
 > a copy of this software and associated documentation files (the
@@ -21,4 +21,3 @@ libCURL.jl is licensed under the MIT License:
 > LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 > OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 > WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
