@@ -313,10 +313,12 @@ function cleanup_easy_context(ctxt::Union(ConnContext,Bool))
     if isa(ctxt, ConnContext)
         if (ctxt.slist != C_NULL)
             curl_slist_free_all(ctxt.slist)
+            ctxt.slist = C_NULL
         end
 
         if (ctxt.curl != C_NULL)
             curl_easy_cleanup(ctxt.curl)
+            ctxt.curl = C_NULL
         end
 
         if ctxt.close_ostream
