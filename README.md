@@ -48,7 +48,7 @@ Each API returns an object of type
 ```julia
 type Response
     body::IOBuffer
-    headers::Dict{ASCIIString, ASCIIString}
+    headers::Dict{String, Vector{String}}
     http_code::Int
     total_time::Float64
     bytes_recd::Integer
