@@ -4,7 +4,7 @@ using Compat
 using LibCURL
 using LibCURL.Mime_ext
 
-import Base.convert, Base.show, Base.get, Base.put, Base.trace
+import Base.convert, Base.show, Base.get, Base.trace
 
 export init, cleanup, get, put, post, trace, delete, head, options
 export RequestOptions, Response
@@ -232,7 +232,7 @@ null_cb(curl) = return nothing
 
 function set_opt_blocking(options::RequestOptions)
         o2 = RequestOptions()
-        for n in filter(x -> !(x in [:ostream, :blocking]),names(o2))
+        for n in filter(x -> !(x in [:ostream, :blocking]),fieldnames(o2))
             setfield!(o2, n, deepcopy(getfield(options, n)))
         end
         o2.blocking = true
