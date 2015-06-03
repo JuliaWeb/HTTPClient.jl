@@ -599,7 +599,7 @@ end
 
 
 function urlencode(curl, s::String)
-    b_arr = curl_easy_escape(curl, s, length(s))
+    b_arr = curl_easy_escape(curl, s, sizeof(s))
     esc_s = bytestring(b_arr)
     curl_free(b_arr)
     return esc_s
