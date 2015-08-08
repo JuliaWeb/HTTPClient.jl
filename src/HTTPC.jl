@@ -205,24 +205,24 @@ c_curl_multi_timer_cb = cfunction(curl_multi_timer_cb, Cint, (Ptr{Void}, Clong, 
 # Utility functions
 ##############################
 
-macro ce_curl (f, args...)
+macro ce_curl(f, args...)
     quote
         cc = CURLE_OK
         cc = $(esc(f))(ctxt.curl, $(args...))
 
         if(cc != CURLE_OK)
-            error (string($f) * "() failed: " * bytestring(curl_easy_strerror(cc)))
+            error(string($f) * "() failed: " * bytestring(curl_easy_strerror(cc)))
         end
     end
 end
 
-macro ce_curlm (f, args...)
+macro ce_curlm(f, args...)
     quote
         cc = CURLM_OK
         cc = $(esc(f))(curlm, $(args...))
 
         if(cc != CURLM_OK)
-            error (string($f) * "() failed: " * bytestring(curl_multi_strerror(cc)))
+            error(string($f) * "() failed: " * bytestring(curl_multi_strerror(cc)))
         end
     end
 end
@@ -281,20 +281,20 @@ function setup_easy_handle(url, options::RequestOptions)
 
     if options.content_type != ""
         ct = "Content-Type: " * options.content_type
-        ctxt.slist = curl_slist_append (ctxt.slist, ct)
+        ctxt.slist = curl_slist_append(ctxt.slist, ct)
     else
         # Disable libCURL automatically setting the content type
-        ctxt.slist = curl_slist_append (ctxt.slist, "Content-Type:")
+        ctxt.slist = curl_slist_append(ctxt.slist, "Content-Type:")
     end
 
 
     for hdr in options.headers
         hdr_str = hdr[1] * ":" * hdr[2]
-        ctxt.slist = curl_slist_append (ctxt.slist, hdr_str)
+        ctxt.slist = curl_slist_append(ctxt.slist, hdr_str)
     end
 
     # Disabling the Expect header since some webservers don't handle this properly
-    ctxt.slist = curl_slist_append (ctxt.slist, "Expect:")
+    ctxt.slist = curl_slist_append(ctxt.slist, "Expect:")
     @ce_curl curl_easy_setopt CURLOPT_HTTPHEADER ctxt.slist
 
     if isa(options.ostream, String)
@@ -398,7 +398,7 @@ end
 # POST & PUT
 ##############################
 
-function post (url::String, data, options::RequestOptions=RequestOptions())
+function post(url::String, data, options::RequestOptions=RequestOptions())
     if (options.blocking)
         return put_post(url, data, :post, options)
     else
@@ -406,7 +406,7 @@ function post (url::String, data, options::RequestOptions=RequestOptions())
     end
 end
 
-function put (url::String, data, options::RequestOptions=RequestOptions())
+function put(url::String, data, options::RequestOptions=RequestOptions())
     if (options.blocking)
         return put_post(url, data, :put, options)
     else
@@ -447,7 +447,7 @@ function put_post(url::String, data, putorpost::Symbol, options::RequestOptions)
 
     elseif isa(data, Tuple)
         (typsym, filename) = data
-        if (typsym != :file) error ("Unsupported data datatype") end
+        if (typsym != :file) error("Unsupported data datatype") end
 
         rd.typ = :io
         rd.src = open(filename)
@@ -463,7 +463,7 @@ function put_post(url::String, data, putorpost::Symbol, options::RequestOptions)
         end
 
     else
-        error ("Unsupported data datatype")
+        error("Unsupported data datatype")
     end
 
     return _put_post(url, putorpost, options, rd)
@@ -686,7 +686,7 @@ function exec_as_multi(ctxt)
         while (n_active[1] > 0) &&  (time_left > 0)
             nb1 = ctxt.resp.bytes_recd
             cmc = curl_multi_perform(curlm, n_active);
-            if(cmc != CURLM_OK) error ("curl_multi_perform() failed: " * bytestring(curl_multi_strerror(cmc))) end
+            if(cmc != CURLM_OK) error("curl_multi_perform() failed: " * bytestring(curl_multi_strerror(cmc))) end
 
             nb2 = ctxt.resp.bytes_recd
 
@@ -723,7 +723,7 @@ function exec_as_multi(ctxt)
                 p_msg = curl_multi_info_read(curlm, msgs_in_queue)
             end
         else
-            error ("request timed out")
+            error("request timed out")
         end
 
     finally
