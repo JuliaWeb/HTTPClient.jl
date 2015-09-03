@@ -3,7 +3,9 @@ HTTPClient.jl
 
 [![Build Status](https://travis-ci.org/JuliaWeb/HTTPClient.jl.svg?branch=master)](https://travis-ci.org/JuliaWeb/HTTPClient.jl)
 [![Coverage Status](https://coveralls.io/repos/JuliaWeb/HTTPClient.jl/badge.svg)](https://coveralls.io/r/JuliaWeb/HTTPClient.jl)
-[![HTTPClient](http://pkg.julialang.org/badges/HTTPClient_release.svg)](http://pkg.julialang.org/?pkg=HTTPClient&ver=release)
+
+[![HTTPClient](http://pkg.julialang.org/badges/HTTPClient_0.3.svg)](http://pkg.julialang.org/?pkg=HTTPClient&ver=0.3)
+[![HTTPClient](http://pkg.julialang.org/badges/HTTPClient_0.4.svg)](http://pkg.julialang.org/?pkg=HTTPClient&ver=0.4)
 
 Provides HTTP client functionality based on [libcurl](https://github.com/JuliaWeb/LibCURL.jl).
 
