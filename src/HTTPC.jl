@@ -19,10 +19,10 @@ type RequestOptions
     blocking::Bool
     query_params::Vector{Tuple}
     request_timeout::Float64
-    callback::Union(Function,Bool)
+    callback::Union{Function,Bool}
     content_type::AbstractString
     headers::Vector{Tuple}
-    ostream::Union(IO, AbstractString, Nothing)
+    ostream::Union{IO, AbstractString, Void}
     auto_content_type::Bool
 
     RequestOptions(; blocking=true, query_params=Array(Tuple,0), request_timeout=def_rto, callback=null_cb, content_type="", headers=Array(Tuple,0), ostream=nothing, auto_content_type=true) =
@@ -309,7 +309,7 @@ function setup_easy_handle(url, options::RequestOptions)
     ctxt
 end
 
-function cleanup_easy_context(ctxt::Union(ConnContext,Bool))
+function cleanup_easy_context(ctxt::Union{ConnContext,Bool})
     if isa(ctxt, ConnContext)
         if (ctxt.slist != C_NULL)
             curl_slist_free_all(ctxt.slist)
