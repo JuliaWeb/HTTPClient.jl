@@ -20,9 +20,9 @@ type RequestOptions
     query_params::Vector{Tuple}
     request_timeout::Float64
     callback::Union(Function,Bool)
-    content_type::String
+    content_type::AbstractString
     headers::Vector{Tuple}
-    ostream::Union(IO, String, Nothing)
+    ostream::Union(IO, AbstractString, Nothing)
     auto_content_type::Bool
 
     RequestOptions(; blocking=true, query_params=Array(Tuple,0), request_timeout=def_rto, callback=null_cb, content_type="", headers=Array(Tuple,0), ostream=nothing, auto_content_type=true) =
@@ -31,12 +31,12 @@ end
 
 type Response
     body
-    headers :: Dict{String, Vector{String}}
+    headers :: Dict{AbstractString, Vector{AbstractString}}
     http_code
     total_time
     bytes_recd::Integer
 
-    Response() = new(nothing, Dict{String, Vector{String}}(), 0, 0.0, 0)
+    Response() = new(nothing, Dict{AbstractString, Vector{AbstractString}}(), 0, 0.0, 0)
 end
 
 function show(io::IO, o::Response)
@@ -56,7 +56,7 @@ end
 type ReadData
     typ::Symbol
     src::Any
-    str::String
+    str::AbstractString
     offset::Csize_t
     sz::Csize_t
 
@@ -65,7 +65,7 @@ end
 
 type ConnContext
     curl::Ptr{CURL}
-    url::String
+    url::AbstractString
     slist::Ptr{Void}
     rd::ReadData
     resp::Response
@@ -96,7 +96,7 @@ end
 # Callbacks
 ##############################
 
-function write_cb(buff::Ptr{Uint8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
+function write_cb(buff::Ptr{UInt8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
 #    println("@write_cb")
     ctxt = unsafe_pointer_to_objref(p_ctxt)
     nbytes = sz * n
@@ -106,9 +106,9 @@ function write_cb(buff::Ptr{Uint8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
     nbytes::Csize_t
 end
 
-c_write_cb = cfunction(write_cb, Csize_t, (Ptr{Uint8}, Csize_t, Csize_t, Ptr{Void}))
+c_write_cb = cfunction(write_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Void}))
 
-function header_cb(buff::Ptr{Uint8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
+function header_cb(buff::Ptr{UInt8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
 #    println("@header_cb")
     ctxt = unsafe_pointer_to_objref(p_ctxt)
     hdrlines = split(bytestring(buff, convert(Int, sz * n)), "\r\n")
@@ -122,14 +122,14 @@ function header_cb(buff::Ptr{Uint8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
             if haskey(ctxt.resp.headers, k)
                 push!(ctxt.resp.headers[k], v)
             else
-                ctxt.resp.headers[k] = (String)[v]
+                ctxt.resp.headers[k] = (AbstractString)[v]
             end
         end
     end
     (sz*n)::Csize_t
 end
 
-c_header_cb = cfunction(header_cb, Csize_t, (Ptr{Uint8}, Csize_t, Csize_t, Ptr{Void}))
+c_header_cb = cfunction(header_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Void}))
 
 
 function curl_read_cb(out::Ptr{Void}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
@@ -141,11 +141,11 @@ function curl_read_cb(out::Ptr{Void}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
     b2copy = bavail > breq ? breq : bavail
 
     if (ctxt.rd.typ == :buffer)
-        ccall(:memcpy, Ptr{Void}, (Ptr{Void}, Ptr{Void}, Uint),
-                out, convert(Ptr{Uint8}, pointer(ctxt.rd.str)) + ctxt.rd.offset, b2copy)
+        ccall(:memcpy, Ptr{Void}, (Ptr{Void}, Ptr{Void}, UInt64),
+                out, convert(Ptr{UInt8}, pointer(ctxt.rd.str)) + ctxt.rd.offset, b2copy)
     elseif (ctxt.rd.typ == :io)
-        b_read = read(ctxt.rd.src, Uint8, b2copy)
-        ccall(:memcpy, Ptr{Void}, (Ptr{Void}, Ptr{Void}, Uint), out, b_read, b2copy)
+        b_read = read(ctxt.rd.src, UInt8, b2copy)
+        ccall(:memcpy, Ptr{Void}, (Ptr{Void}, Ptr{Void}, UInt64), out, b_read, b2copy)
     end
     ctxt.rd.offset = ctxt.rd.offset + b2copy
 
@@ -297,7 +297,7 @@ function setup_easy_handle(url, options::RequestOptions)
     ctxt.slist = curl_slist_append(ctxt.slist, "Expect:")
     @ce_curl curl_easy_setopt CURLOPT_HTTPHEADER ctxt.slist
 
-    if isa(options.ostream, String)
+    if isa(options.ostream, AbstractString)
         ctxt.resp.body = open(options.ostream, "w+")
         ctxt.close_ostream = true
     elseif isa(options.ostream, IO)
@@ -375,7 +375,7 @@ cleanup() = curl_global_cleanup()
 # GET
 ##############################
 
-function get(url::String, options::RequestOptions=RequestOptions())
+function get(url::AbstractString, options::RequestOptions=RequestOptions())
     if (options.blocking)
         ctxt = false
         try
@@ -398,7 +398,7 @@ end
 # POST & PUT
 ##############################
 
-function post(url::String, data, options::RequestOptions=RequestOptions())
+function post(url::AbstractString, data, options::RequestOptions=RequestOptions())
     if (options.blocking)
         return put_post(url, data, :post, options)
     else
@@ -406,7 +406,7 @@ function post(url::String, data, options::RequestOptions=RequestOptions())
     end
 end
 
-function put(url::String, data, options::RequestOptions=RequestOptions())
+function put(url::AbstractString, data, options::RequestOptions=RequestOptions())
     if (options.blocking)
         return put_post(url, data, :put, options)
     else
@@ -416,10 +416,10 @@ end
 
 
 
-function put_post(url::String, data, putorpost::Symbol, options::RequestOptions)
+function put_post(url::AbstractString, data, putorpost::Symbol, options::RequestOptions)
     rd::ReadData = ReadData()
 
-    if isa(data, String)
+    if isa(data, AbstractString)
         rd.typ = :buffer
         rd.src = false
         rd.str = data
@@ -472,7 +472,7 @@ end
 
 
 
-function _put_post(url::String, putorpost::Symbol, options::RequestOptions, rd::ReadData)
+function _put_post(url::AbstractString, putorpost::Symbol, options::RequestOptions, rd::ReadData)
     ctxt = false
     try
         ctxt = setup_easy_handle(url, options)
@@ -507,7 +507,7 @@ end
 ##############################
 # HEAD, DELETE and TRACE
 ##############################
-function head(url::String, options::RequestOptions=RequestOptions())
+function head(url::AbstractString, options::RequestOptions=RequestOptions())
     if (options.blocking)
         ctxt = false
         try
@@ -525,25 +525,25 @@ function head(url::String, options::RequestOptions=RequestOptions())
 
 end
 
-delete(url::String, options::RequestOptions=RequestOptions()) = custom(url, "DELETE", options)
-trace(url::String, options::RequestOptions=RequestOptions()) = custom(url, "TRACE", options)
-options(url::String, options::RequestOptions=RequestOptions()) = custom(url, "OPTIONS", options)
+delete(url::AbstractString, options::RequestOptions=RequestOptions()) = custom(url, "DELETE", options)
+trace(url::AbstractString, options::RequestOptions=RequestOptions()) = custom(url, "TRACE", options)
+options(url::AbstractString, options::RequestOptions=RequestOptions()) = custom(url, "OPTIONS", options)
 
 
 for f in (:get, :head, :delete, :trace, :options)
-    @eval $(f)(url::String; kwargs...) = $(f)(url, RequestOptions(; kwargs...))
+    @eval $(f)(url::AbstractString; kwargs...) = $(f)(url, RequestOptions(; kwargs...))
 end
 
-# put(url::String, data::String; kwargs...) = put(url, data, options=RequestOptions(; kwargs...))
-# post(url::String, data::String; kwargs...) = post(url, data, options=RequestOptions(; kwargs...))
+# put(url::AbstractString, data::AbstractString; kwargs...) = put(url, data, options=RequestOptions(; kwargs...))
+# post(url::AbstractString, data::AbstractString; kwargs...) = post(url, data, options=RequestOptions(; kwargs...))
 
 
 for f in (:put, :post)
-    @eval $(f)(url::String, data::String; kwargs...) = $(f)(url, data, RequestOptions(; kwargs...))
+    @eval $(f)(url::AbstractString, data::AbstractString; kwargs...) = $(f)(url, data, RequestOptions(; kwargs...))
 end
 
 
-function custom(url::String, verb::String, options::RequestOptions)
+function custom(url::AbstractString, verb::AbstractString, options::RequestOptions)
     if (options.blocking)
         ctxt = false
         try
@@ -598,14 +598,14 @@ function urlencode_query_params{T<:Tuple}(curl, params::Vector{T})
 end
 
 
-function urlencode(curl, s::String)
+function urlencode(curl, s::AbstractString)
     b_arr = curl_easy_escape(curl, s, sizeof(s))
     esc_s = bytestring(b_arr)
     curl_free(b_arr)
     return esc_s
 end
 
-function urlencode(s::String)
+function urlencode(s::AbstractString)
     curl = curl_easy_init()
     if (curl == C_NULL) throw("curl_easy_init() failed") end
 
