@@ -426,7 +426,7 @@ function put_post(url::AbstractString, data, putorpost::Symbol, options::Request
         rd.sz = length(data)
 
     elseif isa(data, Dict) || (isa(data, Vector) && issubtype(eltype(data), Tuple))
-        arr_data = isa(data, Dict) ? collect(data) : data
+        arr_data = isa(data, Dict) ? Array{Tuple,1}(map((d) -> (d[1], d[2]), data)) : data
         rd.str = urlencode_query_params(arr_data)  # Not very optimal since it creates another curl handle, but it is clean...
         rd.sz = length(rd.str)
         rd.typ = :buffer

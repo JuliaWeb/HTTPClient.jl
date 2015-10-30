@@ -45,11 +45,11 @@ r=HTTPC.get(HB * "/cookies/set?k1=v1&k2=v2")
 @test Set(r.headers["Set-Cookie"]) == Set(["k1=v1; Path=/", "k2=v2; Path=/"])
 println("Test.headers passed")
 
-r=HTTPC.get(RB, RequestOptions(query_params=collect(@compat Dict(:test => 1.1, :Hello => "\"World\"", "_rt" => "&!@#%"))))
+r=HTTPC.get(RB, RequestOptions(query_params=[(:test, 1.1), (:Hello, "\"World\""), ("_rt", "&!@#%")]))
 @test r.http_code == 200
 println("Test 1.1 passed, http_code : " * string(r.http_code))
 
-rr=HTTPC.get(RB, RequestOptions(query_params=collect(@compat Dict(:test => 1.2, :Hello => "\"World\"", "_rt" => "&!@#%")), blocking=false))
+rr=HTTPC.get(RB, RequestOptions(query_params=[(:test, 1.1), (:Hello, "\"World\""), ("_rt", "&!@#%")], blocking=false))
 r = fetch(rr)
 @test r.http_code == 200
 println("Test 1.2 passed, http_code : " * string(r.http_code))
@@ -193,4 +193,3 @@ trigger = :go
 for ref in rrefs
     wait(ref)
 end
-
