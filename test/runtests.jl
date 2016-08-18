@@ -173,7 +173,7 @@ println("Test 12nb passed, http_code : " * string(r.http_code))
 @test r.http_code == 200
 
 
-function waitnexec (id)
+function waitnexec(id)
     tname = "async" * string(id)
     global trigger
     while (trigger != :go)
