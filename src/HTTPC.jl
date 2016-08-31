@@ -111,7 +111,7 @@ c_write_cb = cfunction(write_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Voi
 function header_cb(buff::Ptr{UInt8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
 #    println("@header_cb")
     ctxt = unsafe_pointer_to_objref(p_ctxt)
-    hdrlines = split(bytestring(buff, convert(Int, sz * n)), "\r\n")
+    hdrlines = split(unsafe_string(buff, convert(Int, sz * n)), "\r\n")
 
 #    println(hdrlines)
     for e in hdrlines
@@ -211,7 +211,7 @@ macro ce_curl(f, args...)
         cc = $(esc(f))(ctxt.curl, $(args...))
 
         if(cc != CURLE_OK)
-            error(string($f) * "() failed: " * bytestring(curl_easy_strerror(cc)))
+            error(string($f) * "() failed: " * unsafe_string(curl_easy_strerror(cc)))
         end
     end
 end
@@ -222,7 +222,7 @@ macro ce_curlm(f, args...)
         cc = $(esc(f))(curlm, $(args...))
 
         if(cc != CURLM_OK)
-            error(string($f) * "() failed: " * bytestring(curl_multi_strerror(cc)))
+            error(string($f) * "() failed: " * unsafe_string(curl_multi_strerror(cc)))
         end
     end
 end
@@ -600,7 +600,7 @@ end
 
 function urlencode(curl, s::AbstractString)
     b_arr = curl_easy_escape(curl, s, sizeof(s))
-    esc_s = bytestring(b_arr)
+    esc_s = unsafe_string(b_arr)
     curl_free(b_arr)
     return esc_s
 end
@@ -615,7 +615,7 @@ function urlencode(s::AbstractString)
 
 end
 
-urlencode(s::SubString) = urlencode(bytestring(s))
+urlencode(s::SubString) = urlencode(unsafe_string(s))
 
 export urlencode
 
@@ -686,7 +686,7 @@ function exec_as_multi(ctxt)
         while (n_active[1] > 0) &&  (time_left > 0)
             nb1 = ctxt.resp.bytes_recd
             cmc = curl_multi_perform(curlm, n_active);
-            if(cmc != CURLM_OK) error("curl_multi_perform() failed: " * bytestring(curl_multi_strerror(cmc))) end
+            if(cmc != CURLM_OK) error("curl_multi_perform() failed: " * unsafe_string(curl_multi_strerror(cmc))) end
 
             nb2 = ctxt.resp.bytes_recd
 
@@ -714,7 +714,7 @@ function exec_as_multi(ctxt)
                     ec = convert(Int, msg.data)
                     if (ec != CURLE_OK)
 #                        println("Result of transfer: " * string(msg.data))
-                        throw("Error executing request : " * bytestring(curl_easy_strerror(ec)))
+                        throw("Error executing request : " * unsafe_string(curl_easy_strerror(ec)))
                     else
                         process_response(ctxt)
                     end
