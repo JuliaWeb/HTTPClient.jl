@@ -388,7 +388,7 @@ function get(url::AbstractString, options::RequestOptions=RequestOptions())
             cleanup_easy_context(ctxt)
         end
     else
-        return remotecall(myid(), get, url, set_opt_blocking(options))
+        return remotecall(get, myid(), url, set_opt_blocking(options))
     end
 end
 
@@ -402,7 +402,7 @@ function post(url::AbstractString, data, options::RequestOptions=RequestOptions(
     if (options.blocking)
         return put_post(url, data, :post, options)
     else
-        return remotecall(myid(), post, url, data, set_opt_blocking(options))
+        return remotecall(post, myid(), url, data, set_opt_blocking(options))
     end
 end
 
@@ -410,7 +410,7 @@ function put(url::AbstractString, data, options::RequestOptions=RequestOptions()
     if (options.blocking)
         return put_post(url, data, :put, options)
     else
-        return remotecall(myid(), put, url, data, set_opt_blocking(options))
+        return remotecall(put, myid(), url, data, set_opt_blocking(options))
     end
 end
 
@@ -520,7 +520,7 @@ function head(url::AbstractString, options::RequestOptions=RequestOptions())
             cleanup_easy_context(ctxt)
         end
     else
-        return remotecall(myid(), head, url, set_opt_blocking(options))
+        return remotecall(head, myid(), url, set_opt_blocking(options))
     end
 
 end
@@ -556,7 +556,7 @@ function custom(url::AbstractString, verb::AbstractString, options::RequestOptio
             cleanup_easy_context(ctxt)
         end
     else
-        return remotecall(myid(), custom, url, verb, set_opt_blocking(options))
+        return remotecall(custom, myid(), url, verb, set_opt_blocking(options))
     end
 end
 

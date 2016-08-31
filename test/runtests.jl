@@ -188,7 +188,7 @@ end
 
 # Run 100 requests in parallel asynchronously
 trigger = :wait
-rrefs = [remotecall(1, waitnexec, i) for i in 1:100]
+rrefs = [remotecall(waitnexec, 1, i) for i in 1:100]
 
 trigger = :go
 # wait for all of them to finish
