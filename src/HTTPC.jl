@@ -100,7 +100,7 @@ function write_cb(buff::Ptr{UInt8}, sz::Csize_t, n::Csize_t, p_ctxt::Ptr{Void})
 #    println("@write_cb")
     ctxt = unsafe_pointer_to_objref(p_ctxt)
     nbytes = sz * n
-    write(ctxt.resp.body, buff, nbytes)
+    unsafe_write(ctxt.resp.body, buff, nbytes)
     ctxt.resp.bytes_recd = ctxt.resp.bytes_recd + nbytes
 
     nbytes::Csize_t

@@ -3,13 +3,15 @@ using JSON
 using Compat
 using Base.Test
 
+import Compat.String
+
 const upload_file = joinpath(dirname(@__FILE__), "uploadfile.txt")
 
 # get a request bin name
 r=HTTPC.post("http://requestb.in/api/v1/bins", "")
 @test r.http_code == 200
 
-jdict = JSON.parse(bytestring(r.body))
+jdict = JSON.parse(String(r.body))
 @test haskey(jdict, "name")
 
 RB = "http://requestb.in/" * jdict["name"]
