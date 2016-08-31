@@ -3,13 +3,15 @@ using JSON
 using Compat
 using Base.Test
 
+import Compat.String
+
 const upload_file = joinpath(dirname(@__FILE__), "uploadfile.txt")
 
 # get a request bin name
 r=HTTPC.post("http://requestb.in/api/v1/bins", "")
 @test r.http_code == 200
 
-jdict = JSON.parse(bytestring(r.body))
+jdict = JSON.parse(String(r.body))
 @test haskey(jdict, "name")
 
 RB = "http://requestb.in/" * jdict["name"]
@@ -173,7 +175,7 @@ println("Test 12nb passed, http_code : " * string(r.http_code))
 @test r.http_code == 200
 
 
-function waitnexec (id)
+function waitnexec(id)
     tname = "async" * string(id)
     global trigger
     while (trigger != :go)
@@ -186,7 +188,7 @@ end
 
 # Run 100 requests in parallel asynchronously
 trigger = :wait
-rrefs = [remotecall(1, waitnexec, i) for i in 1:100]
+rrefs = [remotecall(waitnexec, 1, i) for i in 1:100]
 
 trigger = :go
 # wait for all of them to finish
