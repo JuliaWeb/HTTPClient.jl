@@ -375,7 +375,7 @@ cleanup() = curl_global_cleanup()
 # GET
 ##############################
 
-function get(url::AbstractString, options::RequestOptions=RequestOptions())
+function get(url::AbstractString, options::RequestOptions)
     if (options.blocking)
         ctxt = false
         try
@@ -507,7 +507,7 @@ end
 ##############################
 # HEAD, DELETE and TRACE
 ##############################
-function head(url::AbstractString, options::RequestOptions=RequestOptions())
+function head(url::AbstractString, options::RequestOptions)
     if (options.blocking)
         ctxt = false
         try
@@ -525,9 +525,9 @@ function head(url::AbstractString, options::RequestOptions=RequestOptions())
 
 end
 
-delete(url::AbstractString, options::RequestOptions=RequestOptions()) = custom(url, "DELETE", options)
-trace(url::AbstractString, options::RequestOptions=RequestOptions()) = custom(url, "TRACE", options)
-options(url::AbstractString, options::RequestOptions=RequestOptions()) = custom(url, "OPTIONS", options)
+delete(url::AbstractString, options::RequestOptions) = custom(url, "DELETE", options)
+trace(url::AbstractString, options::RequestOptions) = custom(url, "TRACE", options)
+options(url::AbstractString, options::RequestOptions) = custom(url, "OPTIONS", options)
 
 
 for f in (:get, :head, :delete, :trace, :options)
