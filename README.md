@@ -1,3 +1,5 @@
+THIS PACKAGE IS DEPRECATED IN FAVOR OF [HTTP.JL](https://github.com/JuliaWeb/HTTP.jl)
+
 HTTPClient.jl
 =============
 
