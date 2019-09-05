@@ -25,7 +25,7 @@ type RequestOptions
     ostream::Union{IO, AbstractString, Void}
     auto_content_type::Bool
 
-    RequestOptions(; blocking=true, query_params=Array(Tuple,0), request_timeout=def_rto, callback=null_cb, content_type="", headers=Array(Tuple,0), ostream=nothing, auto_content_type=true) =
+    RequestOptions(; blocking=true, query_params=Array{Tuple}(0), request_timeout=def_rto, callback=null_cb, content_type="", headers=Array{Tuple}(0), ostream=nothing, auto_content_type=true) =
     new(blocking, query_params, request_timeout, callback, content_type, headers, ostream, auto_content_type)
 end
 
@@ -331,10 +331,10 @@ end
 
 
 function process_response(ctxt)
-    http_code = Array(Clong,1)
+    http_code = Array{Clong}(1)
     @ce_curl curl_easy_getinfo CURLINFO_RESPONSE_CODE http_code
 
-    total_time = Array(Cdouble,1)
+    total_time = Array{Cdouble}(1)
     @ce_curl curl_easy_getinfo CURLINFO_TOTAL_TIME total_time
 
     ctxt.resp.http_code = http_code[1]
@@ -426,7 +426,7 @@ function put_post(url::AbstractString, data, putorpost::Symbol, options::Request
         rd.sz = length(data)
 
     elseif isa(data, Dict) || (isa(data, Vector) && issubtype(eltype(data), Tuple))
-        arr_data = isa(data, Dict) ? Array{Tuple,1}(map((d) -> (d[1], d[2]), collect(data))) : data
+        arr_data = isa(data, Dict) ? Array{Tuple}{1}(map((d) -> (d[1], d[2]), collect(data))) : data
         rd.str = urlencode_query_params(arr_data)  # Not very optimal since it creates another curl handle, but it is clean...
         rd.sz = length(rd.str)
         rd.typ = :buffer
@@ -631,7 +631,7 @@ function exec_as_multi(ctxt)
 
         @ce_curlm curl_multi_add_handle curl
 
-        n_active = Array(Cint,1)
+        n_active = Array{Cint}(1)
         n_active[1] = 1
 
         no_to = 30 * 24 * 3600.0
@@ -703,7 +703,7 @@ function exec_as_multi(ctxt)
 
 
         if (n_active[1] == 0)
-            msgs_in_queue = Array(Cint,1)
+            msgs_in_queue = Array{Cint}(1)
             p_msg::Ptr{CURLMsg2} = curl_multi_info_read(curlm, msgs_in_queue)
 
             while (p_msg != C_NULL)
