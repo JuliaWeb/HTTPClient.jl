@@ -208,7 +208,7 @@ c_curl_multi_timer_cb = cfunction(curl_multi_timer_cb, Cint, (Ptr{Void}, Clong, 
 macro ce_curl(f, args...)
     quote
         cc = CURLE_OK
-        cc = $(esc(f))(ctxt.curl, $(args...))
+        cc = $(esc(f))($(esc(:ctxt)).curl, $(esc.(args)...))
 
         if(cc != CURLE_OK)
             error(string($f) * "() failed: " * unsafe_string(curl_easy_strerror(cc)))
@@ -219,7 +219,7 @@ end
 macro ce_curlm(f, args...)
     quote
         cc = CURLM_OK
-        cc = $(esc(f))(curlm, $(args...))
+        cc = $(esc(f))($(esc(:curlm)), $(esc.(args)...))
 
         if(cc != CURLM_OK)
             error(string($f) * "() failed: " * unsafe_string(curl_multi_strerror(cc)))
